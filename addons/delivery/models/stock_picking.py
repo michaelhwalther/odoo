@@ -59,7 +59,7 @@ class StockPicking(models.Model):
         return weight_uom_id
 
     @api.one
-    @api.depends('move_line_ids')
+    @api.depends('move_line_ids', 'move_line_ids.result_package_id')
     def _compute_packages(self):
         self.ensure_one()
         packs = set()
@@ -69,7 +69,7 @@ class StockPicking(models.Model):
         self.package_ids = list(packs)
 
     @api.one
-    @api.depends('move_line_ids')
+    @api.depends('move_line_ids', 'move_line_ids.result_package_id', 'move_line_ids.product_uom_id', 'move_line_ids.qty_done')
     def _compute_bulk_weight(self):
         weight = 0.0
         for move_line in self.move_line_ids:
@@ -107,16 +107,12 @@ class StockPicking(models.Model):
 
     @api.multi
     def action_done(self):
-        # TDE FIXME: should work in batch
-        self.ensure_one()
         res = super(StockPicking, self).action_done()
-
-        if self.carrier_id and self.carrier_id.integration_level == 'rate_and_ship':
-            self.send_to_shipper()
-
-        if self.carrier_id:
-            self._add_delivery_cost_to_so()
-
+        for pick in self:
+            if pick.carrier_id:
+                if pick.carrier_id.integration_level == 'rate_and_ship':
+                    pick.send_to_shipper()
+                pick._add_delivery_cost_to_so()
         return res
 
     @api.multi
@@ -165,8 +161,11 @@ class StockPicking(models.Model):
     def send_to_shipper(self):
         self.ensure_one()
         res = self.carrier_id.send_shipping(self)[0]
+        if self.carrier_id.free_over and self.sale_id and self.sale_id._compute_amount_total_without_delivery() >= self.carrier_id.amount:
+            res['exact_price'] = 0.0
         self.carrier_price = res['exact_price']
-        self.carrier_tracking_ref = res['tracking_number']
+        if res['tracking_number']:
+            self.carrier_tracking_ref = res['tracking_number']
         order_currency = self.sale_id.currency_id or self.company_id.currency_id
         msg = _("Shipment sent to carrier %s for shipping with tracking number %s<br/>Cost: %.2f %s") % (self.carrier_id.name, self.carrier_tracking_ref, self.carrier_price, order_currency.name)
         self.message_post(body=msg)

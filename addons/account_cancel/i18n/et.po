@@ -5,6 +5,7 @@
 # Translators:
 # Martin Trigaux, 2017
 # Egon Raamat <egon@avalah.ee>, 2017
+# Martin Aavastik <martin@avalah.ee>, 2017
 # Eneli Õigus <enelioigus@gmail.com>, 2017
 msgid ""
 msgstr ""

@@ -17,7 +17,7 @@ class TestMailMessage(TestMail):
             'reply_to': 'test.reply@example.com',
             'email_from': 'test.from@example.com',
         })
-        self.assertIn('-private', msg.message_id, 'mail_message: message_id for a void message should be a "private" one')
+        self.assertIn('-private', msg.message_id.split('@')[0], 'mail_message: message_id for a void message should be a "private" one')
         self.assertEqual(msg.reply_to, 'test.reply@example.com')
         self.assertEqual(msg.email_from, 'test.from@example.com')
 
@@ -25,7 +25,7 @@ class TestMailMessage(TestMail):
         self.env['ir.config_parameter'].search([('key', '=', 'mail.catchall.domain')]).unlink()
 
         msg = self.env['mail.message'].sudo(self.user_employee).create({})
-        self.assertIn('-private', msg.message_id, 'mail_message: message_id for a void message should be a "private" one')
+        self.assertIn('-private', msg.message_id.split('@')[0], 'mail_message: message_id for a void message should be a "private" one')
         self.assertEqual(msg.reply_to, '%s <%s>' % (self.user_employee.name, self.user_employee.email))
         self.assertEqual(msg.email_from, '%s <%s>' % (self.user_employee.name, self.user_employee.email))
 
@@ -35,7 +35,7 @@ class TestMailMessage(TestMail):
         self.env['ir.config_parameter'].search([('key', '=', 'mail.catchall.alias')]).unlink()
 
         msg = self.env['mail.message'].sudo(self.user_employee).create({})
-        self.assertIn('-private', msg.message_id, 'mail_message: message_id for a void message should be a "private" one')
+        self.assertIn('-private', msg.message_id.split('@')[0], 'mail_message: message_id for a void message should be a "private" one')
         self.assertEqual(msg.reply_to, '%s <%s>' % (self.user_employee.name, self.user_employee.email))
         self.assertEqual(msg.email_from, '%s <%s>' % (self.user_employee.name, self.user_employee.email))
 
@@ -46,7 +46,7 @@ class TestMailMessage(TestMail):
         self.env['ir.config_parameter'].set_param('mail.catchall.alias', alias_catchall)
 
         msg = self.env['mail.message'].sudo(self.user_employee).create({})
-        self.assertIn('-private', msg.message_id, 'mail_message: message_id for a void message should be a "private" one')
+        self.assertIn('-private', msg.message_id.split('@')[0], 'mail_message: message_id for a void message should be a "private" one')
         self.assertEqual(msg.reply_to, '%s <%s@%s>' % (self.env.user.company_id.name, alias_catchall, alias_domain))
         self.assertEqual(msg.email_from, '%s <%s>' % (self.user_employee.name, self.user_employee.email))
 
@@ -57,7 +57,7 @@ class TestMailMessage(TestMail):
             'model': 'mail.test',
             'res_id': self.test_pigs.id
         })
-        self.assertIn('-openerp-%d-mail.test' % self.test_pigs.id, msg.message_id, 'mail_message: message_id for a void message should be a "private" one')
+        self.assertIn('-openerp-%d-mail.test' % self.test_pigs.id, msg.message_id.split('@')[0], 'mail_message: message_id for a void message should be a "private" one')
         self.assertEqual(msg.reply_to, '%s <%s>' % (self.user_employee.name, self.user_employee.email))
         self.assertEqual(msg.email_from, '%s <%s>' % (self.user_employee.name, self.user_employee.email))
 
@@ -70,7 +70,7 @@ class TestMailMessage(TestMail):
             'model': 'mail.test',
             'res_id': self.test_pigs.id
         })
-        self.assertIn('-openerp-%d-mail.test' % self.test_pigs.id, msg.message_id, 'mail_message: message_id for a void message should be a "private" one')
+        self.assertIn('-openerp-%d-mail.test' % self.test_pigs.id, msg.message_id.split('@')[0], 'mail_message: message_id for a void message should be a "private" one')
         self.assertEqual(msg.reply_to, '%s %s <%s@%s>' % (self.env.user.company_id.name, self.test_pigs.name, self.test_pigs.alias_name, alias_domain))
         self.assertEqual(msg.email_from, '%s <%s>' % (self.user_employee.name, self.user_employee.email))
 
@@ -84,7 +84,7 @@ class TestMailMessage(TestMail):
             'model': 'mail.test',
             'res_id': self.test_pigs.id
         })
-        self.assertIn('-openerp-%d-mail.test' % self.test_pigs.id, msg.message_id, 'mail_message: message_id for a void message should be a "private" one')
+        self.assertIn('-openerp-%d-mail.test' % self.test_pigs.id, msg.message_id.split('@')[0], 'mail_message: message_id for a void message should be a "private" one')
         self.assertEqual(msg.reply_to, '%s %s <%s@%s>' % (self.env.user.company_id.name, self.test_pigs.name, self.test_pigs.alias_name, alias_domain))
         self.assertEqual(msg.email_from, '%s <%s>' % (self.user_employee.name, self.user_employee.email))
 
@@ -94,9 +94,9 @@ class TestMailMessage(TestMail):
             'res_id': self.test_pigs.id,
             'no_auto_thread': True,
         })
-        self.assertIn('reply_to', msg.message_id)
-        self.assertNotIn('mail.test', msg.message_id)
-        self.assertNotIn('-%d-' % self.test_pigs.id, msg.message_id)
+        self.assertIn('reply_to', msg.message_id.split('@')[0])
+        self.assertNotIn('mail.test', msg.message_id.split('@')[0])
+        self.assertNotIn('-%d-' % self.test_pigs.id, msg.message_id.split('@')[0])
 
     def test_mail_message_notify_from_mail_mail(self):
         # Due ot post-commit hooks, store send emails in every step
@@ -112,6 +112,15 @@ class TestMailMessage(TestMail):
         self.email_to_list.extend(itertools.chain.from_iterable(sent_email['email_to'] for sent_email in self._mails if sent_email.get('email_to')))
         self.assertNotIn(u'Ernest Employee <e.e@example.com>', self.email_to_list)
         self.assertIn(u'test@example.com', self.email_to_list)
+
+    def test_mail_message_base64_image(self):
+        msg = self.env['mail.message'].sudo(self.user_employee).create({
+            'body': 'taratata <img src="data:image/png;base64,iV/+OkI=" width="2"> <img src="data:image/png;base64,iV/+OkI=" width="2">',
+        })
+        self.assertEqual(len(msg.attachment_ids), 1)
+        body = '<p>taratata <img src="/web/image/%s?access_token=%s" alt="image0" width="2"> <img src="/web/image/%s?access_token=%s" alt="image0" width="2"></p>'
+        body = body % (msg.attachment_ids[0].id, msg.attachment_ids[0].access_token, msg.attachment_ids[0].id, msg.attachment_ids[0].access_token)
+        self.assertEqual(msg.body, body)
 
 
 class TestMailMessageAccess(TestMail):

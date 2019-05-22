@@ -14,7 +14,7 @@ var FormController = BasicController.extend({
     custom_events: _.extend({}, BasicController.prototype.custom_events, {
         bounce_edit: '_onBounceEdit',
         button_clicked: '_onButtonClicked',
-        freeze_order: '_onFreezeOrder',
+        edited_list: '_onEditedList',
         open_one2many_record: '_onOpenOne2ManyRecord',
         open_record: '_onOpenRecord',
         toggle_column_order: '_onToggleColumnOrder',
@@ -99,6 +99,7 @@ var FormController = BasicController.extend({
      * @todo convert to new style
      */
     on_attach_callback: function () {
+        this._super.apply(this, arguments);
         this.autofocus();
     },
     /**
@@ -212,6 +213,16 @@ var FormController = BasicController.extend({
             return changedFields;
         });
     },
+    /**
+     * Overrides to force the viewType to 'form', so that we ensure that the
+     * correct fields are reloaded (this is only useful for one2many form views).
+     *
+     * @override
+     */
+    update: function (params, options) {
+        params = _.extend({viewType: 'form'}, params);
+        return this._super(params, options);
+    },
 
     //--------------------------------------------------------------------------
     // Private
@@ -297,6 +308,19 @@ var FormController = BasicController.extend({
         var env = this.model.get(this.handle, {env: true});
         state.id = env.currentId;
         this._super(state);
+    },
+    /**
+     * Overrides to reload the form when saving failed in readonly (e.g. after
+     * a change on a widget like priority or statusbar).
+     *
+     * @override
+     * @private
+     */
+    _rejectSave: function () {
+        if (this.mode === 'readonly') {
+            return this.reload();
+        }
+        return this._super.apply(this, arguments);
     },
     /**
      * Calls unfreezeOrder when changing the mode.
@@ -460,11 +484,15 @@ var FormController = BasicController.extend({
      * in a x2many list view
      *
      * @private
-     * @param {OdooEvent} event
+     * @param {OdooEvent} ev
+     * @param {integer} ev.id of the list to freeze while editing a line
      */
-    _onFreezeOrder: function (event) {
-        event.stopPropagation();
-        this.model.freezeOrder(event.data.id);
+    _onEditedList: function (ev) {
+        ev.stopPropagation();
+        if (ev.data.id) {
+            this.model.save(ev.data.id, {savePoint: true});
+        }
+        this.model.freezeOrder(ev.data.id);
     },
     /**
      * Opens a one2many record (potentially new) in a dialog. This handler is

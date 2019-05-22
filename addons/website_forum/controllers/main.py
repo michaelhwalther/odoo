@@ -22,12 +22,8 @@ class WebsiteForum(http.Controller):
     _user_per_page = 30
 
     def _get_notifications(self):
-        badge_subtype = request.env.ref('gamification.mt_badge_granted')
-        if badge_subtype:
-            msg = request.env['mail.message'].search([('subtype_id', '=', badge_subtype.id), ('needaction', '=', True)])
-        else:
-            msg = list()
-        return msg
+        """Deprecated"""
+        return list()
 
     def _prepare_forum_values(self, forum=None, **kwargs):
         values = {
@@ -225,9 +221,9 @@ class WebsiteForum(http.Controller):
     @http.route('/forum/get_url_title', type='json', auth="user", methods=['POST'], website=True)
     def get_url_title(self, **kwargs):
         try:
-            req = requests.get(kwargs.get('url'), stream=True)
+            req = requests.get(kwargs.get('url'))
             req.raise_for_status()
-            arch = lxml.html.parse(req.raw)
+            arch = lxml.html.fromstring(req.content)
             return arch.find(".//title").text
         except IOError:
             return False

@@ -204,7 +204,7 @@ class ResPartner(models.Model):
 
     @api.multi
     def _credit_debit_get(self):
-        tables, where_clause, where_params = self.env['account.move.line']._query_get()
+        tables, where_clause, where_params = self.env['account.move.line'].with_context(company_id=self.env.user.company_id.id)._query_get()
         where_params = [tuple(self.ids)] + where_params
         if where_clause:
             where_clause = 'AND ' + where_clause
@@ -441,3 +441,12 @@ class ResPartner(models.Model):
         action['domain'] = literal_eval(action['domain'])
         action['domain'].append(('partner_id', 'child_of', self.id))
         return action
+
+    @api.onchange('company_id')
+    def _onchange_company_id(self):
+        company = self.env['res.company']
+        if self.company_id:
+            company = self.company_id
+        else:
+            company = self.env.user.company_id
+        return {'domain': {'property_account_position_id': [('company_id', 'in', [company.id, False])]}}

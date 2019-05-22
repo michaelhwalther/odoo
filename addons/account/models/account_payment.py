@@ -113,17 +113,25 @@ class account_register_payments(models.TransientModel):
 
     @api.model
     def _compute_payment_amount(self, invoice_ids):
-        payment_currency = self.currency_id or self.journal_id.currency_id or self.journal_id.company_id.currency_id
+        payment_currency = self.currency_id or self.journal_id.currency_id or self.journal_id.company_id.currency_id or invoice_ids and invoice_ids[0].currency_id
 
         total = 0
         for inv in invoice_ids:
             if inv.currency_id == payment_currency:
-                total += MAP_INVOICE_TYPE_PAYMENT_SIGN[inv.type] * inv.residual_company_signed
+                total += MAP_INVOICE_TYPE_PAYMENT_SIGN[inv.type] * inv.residual_signed
             else:
                 amount_residual = inv.company_currency_id.with_context(date=self.payment_date).compute(
                     inv.residual_company_signed, payment_currency)
                 total += MAP_INVOICE_TYPE_PAYMENT_SIGN[inv.type] * amount_residual
         return total
+
+    @api.onchange('journal_id')
+    def _onchange_journal(self):
+        res = super(account_register_payments, self)._onchange_journal()
+        active_ids = self._context.get('active_ids')
+        invoices = self.env['account.invoice'].browse(active_ids)
+        self.amount = abs(self._compute_payment_amount(invoices))
+        return res
 
     @api.model
     def default_get(self, fields):
@@ -186,11 +194,13 @@ class account_register_payments(models.TransientModel):
         '''
         amount = self._compute_payment_amount(invoices) if self.multi else self.amount
         payment_type = ('inbound' if amount > 0 else 'outbound') if self.multi else self.payment_type
+        communication = (' '.join([inv.reference or inv.number for inv in invoices])
+                         if self.multi else self.communication)
         return {
             'journal_id': self.journal_id.id,
             'payment_method_id': self.payment_method_id.id,
             'payment_date': self.payment_date,
-            'communication': self.communication,
+            'communication': communication,  # DO NOT FORWARD PORT TO V12 OR ABOVE
             'invoice_ids': [(6, 0, invoices.ids)],
             'payment_type': payment_type,
             'amount': abs(amount),
@@ -268,7 +278,7 @@ class account_payment(models.Model):
             self.payment_difference = self._compute_total_invoices_amount() - self.amount
 
     company_id = fields.Many2one(store=True)
-    name = fields.Char(readonly=True, copy=False, default="Draft Payment") # The name is attributed upon post()
+    name = fields.Char(readonly=True, copy=False) # The name is attributed upon post()
     state = fields.Selection([('draft', 'Draft'), ('posted', 'Posted'), ('sent', 'Sent'), ('reconciled', 'Reconciled'), ('cancelled', 'Cancelled')], readonly=True, default='draft', copy=False, string="Status")
 
     payment_type = fields.Selection(selection_add=[('transfer', 'Internal Transfer')])
@@ -319,7 +329,7 @@ class account_payment(models.Model):
     def _compute_journal_domain_and_types(self):
         journal_type = ['bank', 'cash']
         domain = []
-        if self.currency_id.is_zero(self.amount):
+        if self.currency_id.is_zero(self.amount) and self.has_invoices:
             # In case of payment with 0 amount, allow to select a journal of type 'general' like
             # 'Miscellaneous Operations' and set this journal by default.
             journal_type = ['general']
@@ -361,6 +371,12 @@ class account_payment(models.Model):
                 self.destination_account_id = self.partner_id.property_account_receivable_id.id
             else:
                 self.destination_account_id = self.partner_id.property_account_payable_id.id
+        elif self.partner_type == 'customer':
+            default_account = self.env['ir.property'].get('property_account_receivable_id', 'res.partner')
+            self.destination_account_id = default_account.id
+        elif self.partner_type == 'supplier':
+            default_account = self.env['ir.property'].get('property_account_payable_id', 'res.partner')
+            self.destination_account_id = default_account.id
 
     @api.onchange('partner_type')
     def _onchange_partner_type(self):
@@ -416,12 +432,17 @@ class account_payment(models.Model):
 
     @api.multi
     def button_invoices(self):
+        if self.partner_type == 'supplier':
+            views = [(self.env.ref('account.invoice_supplier_tree').id, 'tree'), (self.env.ref('account.invoice_supplier_form').id, 'form')]
+        else:
+            views = [(self.env.ref('account.invoice_tree').id, 'tree'), (self.env.ref('account.invoice_form').id, 'form')]
         return {
             'name': _('Paid Invoices'),
             'view_type': 'form',
             'view_mode': 'tree,form',
             'res_model': 'account.invoice',
             'view_id': False,
+            'views': views,
             'type': 'ir.actions.act_window',
             'domain': [('id', 'in', [x.id for x in self.invoice_ids])],
         }
@@ -475,23 +496,25 @@ class account_payment(models.Model):
             if any(inv.state != 'open' for inv in rec.invoice_ids):
                 raise ValidationError(_("The payment cannot be processed because the invoice is not open!"))
 
-            # Use the right sequence to set the name
-            if rec.payment_type == 'transfer':
-                sequence_code = 'account.payment.transfer'
-            else:
-                if rec.partner_type == 'customer':
-                    if rec.payment_type == 'inbound':
-                        sequence_code = 'account.payment.customer.invoice'
-                    if rec.payment_type == 'outbound':
-                        sequence_code = 'account.payment.customer.refund'
-                if rec.partner_type == 'supplier':
-                    if rec.payment_type == 'inbound':
-                        sequence_code = 'account.payment.supplier.refund'
-                    if rec.payment_type == 'outbound':
-                        sequence_code = 'account.payment.supplier.invoice'
-            rec.name = self.env['ir.sequence'].with_context(ir_sequence_date=rec.payment_date).next_by_code(sequence_code)
-            if not rec.name and rec.payment_type != 'transfer':
-                raise UserError(_("You have to define a sequence for %s in your company.") % (sequence_code,))
+            # keep the name in case of a payment reset to draft
+            if not rec.name:
+                # Use the right sequence to set the name
+                if rec.payment_type == 'transfer':
+                    sequence_code = 'account.payment.transfer'
+                else:
+                    if rec.partner_type == 'customer':
+                        if rec.payment_type == 'inbound':
+                            sequence_code = 'account.payment.customer.invoice'
+                        if rec.payment_type == 'outbound':
+                            sequence_code = 'account.payment.customer.refund'
+                    if rec.partner_type == 'supplier':
+                        if rec.payment_type == 'inbound':
+                            sequence_code = 'account.payment.supplier.refund'
+                        if rec.payment_type == 'outbound':
+                            sequence_code = 'account.payment.supplier.invoice'
+                rec.name = self.env['ir.sequence'].with_context(ir_sequence_date=rec.payment_date).next_by_code(sequence_code)
+                if not rec.name and rec.payment_type != 'transfer':
+                    raise UserError(_("You have to define a sequence for %s in your company.") % (sequence_code,))
 
             # Create the journal entry
             amount = rec.amount * (rec.payment_type in ('outbound', 'transfer') and 1 or -1)
@@ -505,6 +528,7 @@ class account_payment(models.Model):
                 (transfer_credit_aml + transfer_debit_aml).reconcile()
 
             rec.write({'state': 'posted', 'move_name': move.name})
+        return True
 
     @api.multi
     def action_draft(self):
@@ -519,7 +543,7 @@ class account_payment(models.Model):
         if any(len(record.invoice_ids) != 1 for record in self):
             # For multiple invoices, there is account.register.payments wizard
             raise UserError(_("This method should only be called to process a single invoice's payment."))
-        self.post();
+        return self.post()
 
     def _create_payment_entry(self, amount):
         """ Create a journal entry corresponding to a payment, if the payment references invoice(s) they are reconciled.
@@ -549,8 +573,24 @@ class account_payment(models.Model):
             # to avoid loss of precision during the currency rate computations. See revision 20935462a0cabeb45480ce70114ff2f4e91eaf79 for a detailed example.
             total_residual_company_signed = sum(invoice.residual_company_signed for invoice in self.invoice_ids)
             total_payment_company_signed = self.currency_id.with_context(date=self.payment_date).compute(self.amount, self.company_id.currency_id)
-            if self.invoice_ids[0].type in ['in_invoice', 'out_refund']:
+            # amout_wo must be positive for out_invoice and in_refund and negative for in_invoice and out_refund in standard use case
+            #               |   total_payment_company_signed   |    total_residual_company_signed    |    amount_wo
+            #----------------------------------------------------------------------------------------------------------------------
+            # in_invoice    |   positive                       |    positive                         |    negative
+            #----------------------------------------------------------------------------------------------------------------------
+            # in_refund     |   positive                       |    negative                         |    positive
+            #----------------------------------------------------------------------------------------------------------------------
+            # out_invoice   |   positive                       |    positive                         |    positive
+            #----------------------------------------------------------------------------------------------------------------------
+            # out_refund    |   positive                       |    negative                         |    negative
+            #----------------------------------------------------------------------------------------------------------------------
+            # DO NOT FORWARD-PORT
+            if self.invoice_ids[0].type == 'in_invoice':
                 amount_wo = total_payment_company_signed - total_residual_company_signed
+            elif self.invoice_ids[0].type == 'in_refund':
+                amount_wo = - total_payment_company_signed - total_residual_company_signed
+            elif self.invoice_ids[0].type == 'out_refund':
+                amount_wo = total_payment_company_signed + total_residual_company_signed
             else:
                 amount_wo = total_residual_company_signed - total_payment_company_signed
             # Align the sign of the secondary currency writeoff amount with the sign of the writeoff
@@ -570,9 +610,9 @@ class account_payment(models.Model):
             writeoff_line['amount_currency'] = amount_currency_wo
             writeoff_line['currency_id'] = currency_id
             writeoff_line = aml_obj.create(writeoff_line)
-            if counterpart_aml['debit'] or writeoff_line['credit']:
+            if counterpart_aml['debit'] or (writeoff_line['credit'] and not counterpart_aml['credit']):
                 counterpart_aml['debit'] += credit_wo - debit_wo
-            if counterpart_aml['credit'] or writeoff_line['debit']:
+            if counterpart_aml['credit'] or (writeoff_line['debit'] and not counterpart_aml['debit']):
                 counterpart_aml['credit'] += debit_wo - credit_wo
             counterpart_aml['amount_currency'] -= amount_currency_wo
 
@@ -702,3 +742,17 @@ class account_payment(models.Model):
             })
 
         return vals
+
+    def _get_invoice_payment_amount(self, inv):
+        """
+        Computes the amount covered by the current payment in the given invoice.
+
+        :param inv: an invoice object
+        :returns: the amount covered by the payment in the invoice
+        """
+        self.ensure_one()
+        return sum([
+            data['amount']
+            for data in inv._get_payments_vals()
+            if data['account_payment_id'] == self.id
+        ])

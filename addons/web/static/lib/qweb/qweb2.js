@@ -173,7 +173,7 @@ var QWeb2 = {
                         new_dict[as_first] = index === 0;
                         new_dict[as_last] = index + 1 === size;
                         new_dict[as_parity] = (index % 2 == 1 ? 'odd' : 'even');
-                        if (cur.constructor === Object) {
+                        if (cur && cur.constructor === Object) {
                             this.extend(new_dict, cur);
                         }
                         new_dict[as] = cur;
@@ -358,7 +358,12 @@ QWeb2.Engine = (function() {
                 req.open('GET', s, async);
                 if (async) {
                     req.addEventListener("load", function() {
-                        if (req.status == 200) {
+                        // 0, not being a valid HTTP status code, is used by browsers
+                        // to indicate success for a non-http xhr response
+                        // (for example, using the file:// protocol)
+                        // https://developer.mozilla.org/fr/docs/Web/API/XMLHttpRequest
+                        // https://bugzilla.mozilla.org/show_bug.cgi?id=331610
+                        if (req.status == 200 || req.status == 0) {
                             callback(null, self._parse_from_request(req));
                         } else {
                             callback(new Error("Can't load template " + s + ", http status " + req.status));

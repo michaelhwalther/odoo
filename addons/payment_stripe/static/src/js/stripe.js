@@ -21,9 +21,13 @@ odoo.define('payment_stripe.stripe', function(require) {
         $.blockUI.defaults.css["background-color"] = '';
         $.blockUI.defaults.overlayCSS["opacity"] = '0.9';
     }
+    var stripeHandler;
     function getStripeHandler()
     {
-        var handler = StripeCheckout.configure({
+        if (stripeHandler) {
+            return stripeHandler;
+        }
+        var handler = stripeHandler = StripeCheckout.configure({
             key: $("input[name='stripe_key']").val(),
             image: $("input[name='stripe_image']").val(),
             locale: 'auto',
@@ -93,11 +97,14 @@ odoo.define('payment_stripe.stripe', function(require) {
         }
 
         var access_token = $("input[name='access_token']").val() || $("input[name='token']").val() || '';
-        var so_id = $("input[name='return_url']").val().match(/quote\/([0-9]+)/) || undefined;
+        var so_id = $("input[name='return_url']").val().match(/[quote|order]s?\/([0-9]+)/) || undefined;
         if (so_id) {
             so_id = parseInt(so_id[1]);
         }
-
+        var invoice_id = $("input[name='return_url']").val().match(/invoices\/([0-9]+)/) || undefined;
+        if (invoice_id) {
+            invoice_id = parseInt(invoice_id[1]);
+        }
 
         var currency = $("input[name='currency']").val();
         var currency_id = $("input[name='currency_id']").val();
@@ -105,11 +112,14 @@ odoo.define('payment_stripe.stripe', function(require) {
 
 
         if ($('.o_website_payment').length !== 0) {
-            var create_tx = ajax.jsonRpc('/website_payment/transaction', 'call', {
-                    reference: $("input[name='invoice_num']").val(),
-                    amount: amount, // exact amount, not stripe cents
-                    currency_id: currency_id,
+            var invoice_num = $("input[name='invoice_num']").val();
+            var url = _.str.sprintf("/website_payment/transaction/v2/%f/%s/%s",
+                amount, currency_id, invoice_num);
+
+            var create_tx = ajax.jsonRpc(url, 'call', {
                     acquirer_id: acquirer_id
+            }).then(function (data) {
+                try { provider_form[0].innerHTML = data; } catch (e) {}
             });
         }
         else if ($('.o_website_quote').length !== 0) {
@@ -121,8 +131,14 @@ odoo.define('payment_stripe.stripe', function(require) {
                 try { provider_form[0].innerHTML = data; } catch (e) {};
             });
         } else if (window.location.href.includes("/my/orders/")) {
-            var create_tx = ajax.jsonRpc('/pay/sale/' + acquirer_id + '/form_tx/', 'call', {
-                so_id: so_id,
+            var create_tx = ajax.jsonRpc('/pay/sale/' + so_id + '/form_tx/', 'call', {
+                access_token: access_token,
+                acquirer_id: acquirer_id
+            }).then(function (data) {
+                try { provider_form.innerHTML = data; } catch (e) {};
+            });
+        } else if (window.location.href.includes("/my/invoices/")) {
+            var create_tx = ajax.jsonRpc('/invoice/pay/' + invoice_id + '/form_tx/', 'call', {
                 access_token: access_token,
                 acquirer_id: acquirer_id
             }).then(function (data) {
@@ -135,19 +151,19 @@ odoo.define('payment_stripe.stripe', function(require) {
                     access_token: access_token,
                     acquirer_id: acquirer_id
             }).then(function (data) {
+                var $pay_stripe = $('#pay_stripe').detach();
                 try { provider_form.innerHTML = data; } catch (e) {};
+                // Restore 'Pay Now' button HTML since data might have changed it.
+                $(provider_form).find('#pay_stripe').replaceWith($pay_stripe);
             });
         }
         create_tx.done(function () {
-            if (!_.contains(int_currencies, currency)) {
-                amount = amount*100;
-            }
             getStripeHandler().open({
                 name: $("input[name='merchant']").val(),
                 description: $("input[name='invoice_num']").val(),
                 email: $("input[name='email']").val(),
                 currency: currency,
-                amount: amount,
+                amount: _.contains(int_currencies, currency) ? amount : amount * 100,
             });
         });
     }

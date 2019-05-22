@@ -279,7 +279,7 @@ var FormRenderer = BasicRenderer.extend({
         var visible_buttons = buttons_partition[1];
 
         // Get the unfolded buttons according to window size
-        var nb_buttons = [2, 4, 6, 7][config.device.size_class];
+        var nb_buttons = this._renderButtonBoxNbButtons();
         var unfolded_buttons = visible_buttons.slice(0, nb_buttons).concat(invisible_buttons);
 
         // Get the folded buttons
@@ -317,6 +317,13 @@ var FormRenderer = BasicRenderer.extend({
         this._handleAttributes($result, node);
         this._registerModifiers(node, this.state, $result);
         return $result;
+    },
+    /**
+    * @private
+    * @returns {integer}
+    */
+    _renderButtonBoxNbButtons: function () {
+        return [2, 4, 6, 7][config.device.size_class];
     },
     /**
      * @private
@@ -601,6 +608,10 @@ var FormRenderer = BasicRenderer.extend({
 
         var $result = $('<div/>', {class: 'o_group'});
         var colSize = Math.max(1, Math.round(12 / (parseInt(node.attrs.col, 10) || 2)));
+        if (node.attrs.string) {
+            var $sep = $('<div/>', {class: 'o_horizontal_separator'}).text(node.attrs.string);
+            $result.append($sep);
+        }
         $result.append(_.map(node.children, function (child) {
             if (child.tag === 'newline') {
                 return $('<br/>');

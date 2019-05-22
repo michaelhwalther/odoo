@@ -3,20 +3,21 @@
 # * hr_recruitment
 # 
 # Translators:
-# Martin Trigaux, 2017
-# Eneli Õigus <enelioigus@gmail.com>, 2017
-# Arma Gedonsky <armagedonsky@hot.ee>, 2017
-# Rivo Zängov <eraser@eraser.ee>, 2017
 # Wanradt Koell <wanradt@gmail.com>, 2017
 # Gert Valdek <gert@airobot.ee>, 2017
+# Rivo Zängov <eraser@eraser.ee>, 2017
+# Arma Gedonsky <armagedonsky@hot.ee>, 2017
+# Martin Trigaux, 2017
 # Egon Raamat <egon@avalah.ee>, 2017
+# Eneli Õigus <enelioigus@gmail.com>, 2017
+# 
 msgid ""
 msgstr ""
 "Project-Id-Version: Odoo Server 11.0\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2017-11-16 08:08+0000\n"
-"PO-Revision-Date: 2017-11-16 08:08+0000\n"
-"Last-Translator: Egon Raamat <egon@avalah.ee>, 2017\n"
+"PO-Revision-Date: 2017-09-20 10:18+0000\n"
+"Last-Translator: Eneli Õigus <enelioigus@gmail.com>, 2017\n"
 "Language-Team: Estonian (https://www.transifex.com/odoo/teams/41243/et/)\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -748,10 +749,10 @@ msgstr ""
 "<p>Mul on hea meel teatada, et <strong> ${object.name} </strong> liitub \n"
 "meiega kui ${object.job_id.name}\n"
 "%if object.department_id:\n"
-"    in ${object.department_id.name}.\n"
+"    ${object.department_id.name}.\n"
 "%endif\n"
 ".</p>\n"
-"<p>Palun võtke ta vastu ning aidake tal leida oma sihte. </p>"
+"<p>Palun võtke ta kenasti vastu ning aidake tal saavutada oma sihte. </p>"
 
 #. module: hr_recruitment
 #: model:ir.ui.view,arch_db:hr_recruitment.hr_kanban_view_applicant
@@ -771,7 +772,7 @@ msgstr "<b>Osakond:</b>"
 #. module: hr_recruitment
 #: model:ir.ui.view,arch_db:hr_recruitment.crm_case_form_view_job
 msgid "<span class=\"o_stat_text\">Meetings</span>"
-msgstr "<span class=\"o_stat_text\">Koosolekud</span>"
+msgstr "<span class=\"o_stat_text\">Kohtumised</span>"
 
 #. module: hr_recruitment
 #: model:ir.ui.view,arch_db:hr_recruitment.hr_job_survey
@@ -1059,7 +1060,7 @@ msgstr "Ettevõte"
 #. module: hr_recruitment
 #: model:ir.ui.menu,name:hr_recruitment.menu_hr_recruitment_configuration
 msgid "Configuration"
-msgstr "Seadistus"
+msgstr "Seadistused"
 
 #. module: hr_recruitment
 #: code:addons/hr_recruitment/models/hr_recruitment.py:350
@@ -1142,7 +1143,7 @@ msgstr "Loonud"
 #: model:ir.model.fields,field_description:hr_recruitment.field_hr_recruitment_source_create_date
 #: model:ir.model.fields,field_description:hr_recruitment.field_hr_recruitment_stage_create_date
 msgid "Created on"
-msgstr "Loodud"
+msgstr "Loomise kuupäev"
 
 #. module: hr_recruitment
 #: model:ir.model.fields,field_description:hr_recruitment.field_hr_applicant_create_date
@@ -1389,7 +1390,7 @@ msgstr "Kaetud töölevõtmise etappides"
 #. module: hr_recruitment
 #: model:ir.ui.view,arch_db:hr_recruitment.view_crm_case_jobs_filter
 msgid "Future Activities"
-msgstr "Tuleviku tegevused"
+msgstr "Tulevased tegevused"
 
 #. module: hr_recruitment
 #: model:ir.model.fields,help:hr_recruitment.field_hr_recruitment_degree_sequence
@@ -1605,7 +1606,7 @@ msgstr "Viimati uuendatud"
 #. module: hr_recruitment
 #: model:ir.ui.view,arch_db:hr_recruitment.view_crm_case_jobs_filter
 msgid "Late Activities"
-msgstr "Ületähtaja tegevused"
+msgstr "Üle tähtaja tegevused"
 
 #. module: hr_recruitment
 #. openerp-web
@@ -1832,7 +1833,7 @@ msgstr ""
 #. module: hr_recruitment
 #: model:ir.model.fields,help:hr_recruitment.field_hr_job_hr_responsible_id
 msgid "Person responsible of validating the employee's contracts."
-msgstr "Töötajate lepingute valideerimise eest vastutav isik."
+msgstr "Töötajate lepingute kinnitamise eest vastutav isik."
 
 #. module: hr_recruitment
 #: model:ir.model.fields,field_description:hr_recruitment.field_hr_applicant_partner_phone
@@ -1902,7 +1903,7 @@ msgstr "Värbamise analüüsid"
 #. module: hr_recruitment
 #: model:ir.ui.view,arch_db:hr_recruitment.view_hr_job_kanban
 msgid "Recruitment Done"
-msgstr "Värbamine on teostatud"
+msgstr "Värbamine on tehtud"
 
 #. module: hr_recruitment
 #: model:ir.ui.view,arch_db:hr_recruitment.res_config_settings_view_form
@@ -2269,7 +2270,7 @@ msgid ""
 " on Survey app."
 msgstr ""
 "Kasuta värbamisprotsessis igale ametikohale kohandatud intervjuu ankeeti. "
-"Vali ankeet ametikoha üksikasjalikest seadetest. See põhineb uuringu "
+"Vali ankeet ametikoha üksikasjalikest seadetest. See põhineb küsitluse "
 "rakendusel."
 
 #. module: hr_recruitment

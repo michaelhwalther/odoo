@@ -3,25 +3,26 @@
 # * crm
 # 
 # Translators:
-# Pernille Kristensen <pernillekristensen1994@gmail.com>, 2017
-# Sanne Kristensen <sanne@vkdata.dk>, 2017
-# Ejner Sønniksen <ejner@vkdata.dk>, 2017
-# Martin Trigaux, 2017
-# Morten Schou <ms@msteknik.dk>, 2017
-# peso <peer.sommerlund@gmail.com>, 2017
 # Jesper Carstensen <jc@danodoo.dk>, 2017
-# Jarnhold Nattestad <nattestads@gmail.com>, 2017
+# peso <peer.sommerlund@gmail.com>, 2017
 # Per Rasmussen <perhgrasmussen@gmail.com>, 2017
 # Visti Kristensen <visti@vkdata.dk>, 2017
-# lhmflexerp <lhm@flexerp.dk>, 2017
+# Jarnhold Nattestad <nattestads@gmail.com>, 2017
+# Pernille Kristensen <pernillekristensen1994@gmail.com>, 2017
+# Morten Schou <ms@msteknik.dk>, 2017
 # JonathanStein <jstein@image.dk>, 2017
+# lhmflexerp <lhm@flexerp.dk>, 2017
+# Martin Trigaux, 2018
+# Ejner Sønniksen <ejner@vkdata.dk>, 2018
+# Sanne Kristensen <sanne@vkdata.dk>, 2018
+# 
 msgid ""
 msgstr ""
 "Project-Id-Version: Odoo Server 11.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-11-16 08:08+0000\n"
-"PO-Revision-Date: 2017-11-16 08:08+0000\n"
-"Last-Translator: JonathanStein <jstein@image.dk>, 2017\n"
+"POT-Creation-Date: 2018-04-20 11:58+0000\n"
+"PO-Revision-Date: 2017-09-20 10:16+0000\n"
+"Last-Translator: Sanne Kristensen <sanne@vkdata.dk>, 2018\n"
 "Language-Team: Danish (https://www.transifex.com/odoo/teams/41243/da/)\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -621,6 +622,8 @@ msgid ""
 "<span class=\"panel-title\"><span data-icon=\"\"/><strong> Exercise 3</strong></span>\n"
 "                                    <span>(Salesperson)</span>"
 msgstr ""
+"<span class=\"panel-title\"><span data-icon=\"\"/><strong> Øvelse 3</strong></span>\n"
+"                                    <span>(Sælger)</span>"
 
 #. module: crm
 #: model:ir.ui.view,arch_db:crm.crm_planner
@@ -971,7 +974,7 @@ msgstr "Mål for udførte aktiviteter"
 #. module: crm
 #: model:ir.ui.view,arch_db:crm.view_crm_case_opportunities_filter
 msgid "Activities Todo"
-msgstr ""
+msgstr "Aktiviteter der mangler"
 
 #. module: crm
 #: model:ir.model.fields,field_description:crm.field_crm_lead_kanban_state
@@ -1042,7 +1045,7 @@ msgstr ""
 "                        salgsresultater."
 
 #. module: crm
-#: code:addons/crm/wizard/base_partner_merge.py:274
+#: code:addons/crm/wizard/base_partner_merge.py:273
 #, python-format
 msgid ""
 "All contacts must have the same email. Only the Administrator can merge "
@@ -1052,7 +1055,7 @@ msgstr ""
 "kontakter med forskellige e-mails."
 
 #. module: crm
-#: code:addons/crm/models/crm_lead.py:905
+#: code:addons/crm/models/crm_lead.py:916
 #, python-format
 msgid ""
 "All email incoming to %s will automatically\n"
@@ -1285,7 +1288,7 @@ msgstr ""
 #. module: crm
 #: model:ir.model.fields,help:crm.field_crm_team_use_opportunities
 msgid "Check this box to manage a presales process with opportunities."
-msgstr ""
+msgstr "Marker denne boks for at styre en salgsproces med salgsmuligheder."
 
 #. module: crm
 #: model:ir.model.fields,field_description:crm.field_crm_lead_city
@@ -1579,6 +1582,7 @@ msgid "Create a Proof of Concept with consultants"
 msgstr "Opret et Proof of Concept med konsulenter"
 
 #. module: crm
+#: selection:crm.lead.convert2task,action:0
 #: selection:crm.lead2opportunity.partner,action:0
 #: selection:crm.partner.binding,action:0
 msgid "Create a new customer"
@@ -1702,6 +1706,7 @@ msgstr "Nuværende linje"
 #: code:addons/crm/models/crm_lead.py:1135
 #: model:ir.model.fields,field_description:crm.field_crm_lead2opportunity_partner_mass_partner_id
 #: model:ir.model.fields,field_description:crm.field_crm_lead2opportunity_partner_partner_id
+#: model:ir.model.fields,field_description:crm.field_crm_lead_convert2task_partner_id
 #: model:ir.model.fields,field_description:crm.field_crm_lead_partner_id
 #: model:ir.model.fields,field_description:crm.field_crm_partner_binding_partner_id
 #: model:ir.ui.view,arch_db:crm.crm_case_form_view_leads
@@ -1867,6 +1872,7 @@ msgid "Display your brochures, product sheets, showcases etc."
 msgstr "Fremvis dine brochurer, produkt ark, showcases osv."
 
 #. module: crm
+#: selection:crm.lead.convert2task,action:0
 #: selection:crm.lead2opportunity.partner,action:0
 #: selection:crm.lead2opportunity.partner.mass,action:0
 #: selection:crm.partner.binding,action:0
@@ -2141,7 +2147,12 @@ msgid "Force assignation"
 msgstr "Tving tildeling"
 
 #. module: crm
-#: code:addons/crm/models/crm_lead.py:577
+#: model:ir.ui.view,arch_db:crm.res_config_settings_view_form
+msgid "Format phone numbers based on national conventions"
+msgstr ""
+
+#. module: crm
+#: code:addons/crm/models/crm_lead.py:588
 #, python-format
 msgid "From %s : %s"
 msgstr "Fra %s : %s"
@@ -2742,6 +2753,16 @@ msgstr ""
 #: model:ir.ui.view,arch_db:crm.res_config_settings_view_form
 msgid "Manually Assignation of Incoming Emails"
 msgstr ""
+
+#. module: crm
+#: model:ir.actions.server,name:crm.action_mark_activities_done
+msgid "Mark All Activities as Done"
+msgstr "Mærk aktiviteter som udført"
+
+#. module: crm
+#: model:ir.actions.server,name:crm.action_mark_late_activities_done
+msgid "Mark Late Activities as Done"
+msgstr "Mærk seneste aktiviteter som udført"
 
 #. module: crm
 #: model:ir.ui.view,arch_db:crm.crm_case_form_view_oppor
@@ -3368,7 +3389,7 @@ msgstr "Telefon"
 
 #. module: crm
 #: model:ir.model.fields,field_description:crm.field_res_config_settings_module_crm_phone_validation
-msgid "Phone Validation"
+msgid "Phone Formatting"
 msgstr ""
 
 #. module: crm
@@ -3873,7 +3894,7 @@ msgstr ""
 #. module: crm
 #: model:ir.ui.view,arch_db:crm.view_crm_case_leads_filter
 msgid "Show all records which has next action date is before today"
-msgstr ""
+msgstr "Vis alle poster, hvor den næste handlingsdato er før i dag"
 
 #. module: crm
 #: model:ir.ui.view,arch_db:crm.crm_activity_report_view_search
@@ -4365,6 +4386,12 @@ msgid "Unassigned Leads"
 msgstr "Ikke-tildelte Kundeemner"
 
 #. module: crm
+#: code:addons/crm/models/crm_team.py:211
+#, python-format
+msgid "Undefined"
+msgstr "Udefineret"
+
+#. module: crm
 #: model:ir.ui.view,arch_db:crm.crm_planner
 msgid ""
 "Unless you are starting a new business, you probably have a list of "
@@ -4508,11 +4535,6 @@ msgstr "Moms"
 #: model:ir.ui.view,arch_db:crm.crm_planner
 msgid "VIP letter to potential sponsors"
 msgstr "VIP brev til potentielle sponsorer"
-
-#. module: crm
-#: model:ir.ui.view,arch_db:crm.res_config_settings_view_form
-msgid "Validate and normalize phone numbers."
-msgstr ""
 
 #. module: crm
 #: selection:crm.lead,priority:0 selection:crm.opportunity.report,priority:0

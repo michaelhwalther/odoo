@@ -8,14 +8,15 @@ var Widget = require('web.Widget');
 
 var QWeb = core.qweb;
 var _t = core._t;
+var _lt = core._lt;
 
 var ORDER = {
     ASC: 1,
     DESC: -1,
 };
 
-var read_more = _t('read more');
-var read_less = _t('read less');
+var read_more = _lt('read more');
+var read_less = _lt('read less');
 
 function time_from_now(date) {
     if (moment().diff(date, 'seconds') < 45) {
@@ -210,6 +211,10 @@ var Thread = Widget.extend({
         }
     },
     on_click_redirect: function (event) {
+        // ignore inherited branding
+        if ($(event.target).data('oe-field') !== undefined) {
+            return;
+        }
         var id = $(event.target).data('oe-id');
         if (id) {
             event.preventDefault();
@@ -225,7 +230,7 @@ var Thread = Widget.extend({
         } else {
             this.trigger('redirect', options.model, options.id);
         }
-    }, 200, true),
+    }, 500, true),
 
     on_click_show_more: function () {
         this.trigger('load_more_messages');
@@ -324,6 +329,7 @@ var Thread = Widget.extend({
      * @param {MouseEvent} event
      */
     _onAttachmentView: function (event) {
+        event.stopPropagation();
         var activeAttachmentID = $(event.currentTarget).data('id');
         if (activeAttachmentID) {
             var attachmentViewer = new DocumentViewer(this, this.attachments, activeAttachmentID);

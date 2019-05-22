@@ -97,7 +97,10 @@ if(!the_form.length) {
                         }
 
                         // checkboxes and radios
-                        the_form.find("input[name^=" + key + "][type!='text']").each(function(){
+                        the_form.find("input[name^='" + key + "_'][type='checkbox']").each(function(){
+                            $(this).val(value);
+                        });
+                        the_form.find("input[name=" + key + "][type!='text']").each(function(){
                             $(this).val(value);
                         });
                     });
@@ -135,9 +138,11 @@ if(!the_form.length) {
             for (var i=0; i < date_fields.length; i++) {
                 var el = date_fields[i];
                 var moment_date = $(el).data('DateTimePicker').date();
-                moment_date.toJSON = function () {
-                    return this.clone().locale('en').format('YYYY-MM-DD');
-                };
+                if (moment_date) {
+                    moment_date.toJSON = function () {
+                        return this.clone().locale('en').format('YYYY-MM-DD');
+                    };
+                }
                 var field_obj = _.findWhere(formData, {'name': el.name});
                 field_obj.value = JSON.parse(JSON.stringify(moment_date));
             }

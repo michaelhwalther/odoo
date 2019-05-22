@@ -6,6 +6,7 @@ var config = require('web.config');
 var core = require('web.core');
 var fieldRegistry = require('web.field_registry');
 var FormView = require('web.FormView');
+var mixins = require('web.mixins');
 var pyeval = require('web.pyeval');
 var RainbowMan = require('web.rainbow_man');
 var testUtils = require('web.test_utils');
@@ -629,7 +630,7 @@ QUnit.module('Views', {
     });
 
     QUnit.test('readonly attrs on fields are re-evaluated on field change', function (assert) {
-        assert.expect(3);
+        assert.expect(4);
 
         var form = createView({
             View: FormView,
@@ -655,6 +656,9 @@ QUnit.module('Views', {
         form.$('.o_field_boolean input').click();
         assert.strictEqual(form.$('span[name="foo"]').length, 1,
             "the foo field widget should have been rerendered to now be readonly again");
+        form.$('.o_field_boolean input').click();
+        assert.strictEqual(form.$('input[name="foo"]').length, 1,
+            "the foo field widget should have been rerendered to now be editable again");
 
         form.destroy();
     });
@@ -1616,6 +1620,37 @@ QUnit.module('Views', {
             "should have duplicated the record");
 
         assert.strictEqual(form.mode, "edit", 'should be in edit mode');
+        form.destroy();
+    });
+
+    QUnit.test('duplicating a record preserve the context', function (assert) {
+        assert.expect(2);
+
+        var form = createView({
+            View: FormView,
+            model: 'partner',
+            data: this.data,
+            arch: '<form string="Partners">' +
+                        '<field name="foo"/>' +
+                '</form>',
+            res_id: 1,
+            viewOptions: {sidebar: true, context: {hey: 'hoy'}},
+            mockRPC: function (route, args) {
+                if (args.method === 'read') {
+                    // should have 2 read, one for initial load, second for
+                    // read after duplicating
+                    assert.strictEqual(args.kwargs.context.hey, 'hoy',
+                        "should have send the correct context");
+                }
+                if (args.method === 'search_read' && args.model === 'ir.attachment') {
+                    return $.when([]);
+                }
+                return this._super.apply(this, arguments);
+            },
+        });
+
+        form.sidebar.$('a:contains(Duplicate)').click();
+
         form.destroy();
     });
 
@@ -3029,6 +3064,42 @@ QUnit.module('Views', {
 
         assert.strictEqual($('div[name="p"] .o_data_row td').text().trim(), "goldNo records",
             "should have proper initial content");
+        form.destroy();
+    });
+
+    QUnit.test('delete a line in a one2many while editing another line triggers a warning', function (assert) {
+        assert.expect(3);
+
+        this.data.partner.records[0].p = [1, 2];
+
+        var form = createView({
+            View: FormView,
+            model: 'partner',
+            data: this.data,
+            arch: '<form>' +
+                    '<field name="p">' +
+                        '<tree editable="bottom">' +
+                            '<field name="display_name" required="True"/>' +
+                        '</tree>' +
+                    '</field>' +
+                '</form>',
+            res_id: 1,
+        });
+
+        form.$buttons.find('.o_form_button_edit').click();
+        form.$('.o_data_cell').first().click(); // edit first row
+        form.$('input').val('').trigger('input');
+        form.$('.fa-trash-o').eq(1).click(); // delete second row
+
+        assert.strictEqual($('.modal').find('.modal-title').first().text(), "Warning",
+            "Clicking out of a dirty line while editing should trigger a warning modal.");
+
+        $('.modal').find('.btn-primary').click(); // discard changes
+
+        assert.strictEqual(form.$('.o_data_cell').first().text(), "first record",
+            "Value should have been reset to what it was before editing began.");
+        assert.strictEqual(form.$('.o_data_row').length, 1,
+            "The other line should have been deleted.");
         form.destroy();
     });
 
@@ -5199,6 +5270,46 @@ QUnit.module('Views', {
         form.destroy();
     });
 
+    QUnit.test('outer and inner groups string attribute', function (assert) {
+        assert.expect(5);
+
+        var form = createView({
+            View: FormView,
+            model: 'partner',
+            data: this.data,
+            arch: '<form string="Partners">' +
+                    '<sheet>' +
+                        '<group string="parent group" class="parent_group">' +
+                            '<group string="child group 1" class="group_1">' +
+                                '<field name="bar"/>' +
+                            '</group>' +
+                            '<group string="child group 2" class="group_2">' +
+                                '<field name="bar"/>' +
+                            '</group>' +
+                        '</group>' +
+                    '</sheet>' +
+                '</form>',
+            res_id: 1,
+        });
+
+        var $parentGroup = form.$('.parent_group');
+        var $group1 = form.$('.group_1');
+        var $group2 = form.$('.group_2');
+
+        assert.strictEqual(form.$('table.o_inner_group').length, 2,
+            "should contain two inner groups");
+        assert.strictEqual($group1.find('.o_horizontal_separator').length, 1,
+            "inner group should contain one string separator");
+        assert.strictEqual($group1.find('.o_horizontal_separator:contains(child group 1)').length, 1,
+            "first inner group should contain 'child group 1' string");
+        assert.strictEqual($group2.find('.o_horizontal_separator:contains(child group 2)').length, 1,
+            "second inner group should contain 'child group 2' string");
+        assert.strictEqual($parentGroup.find('> div.o_horizontal_separator:contains(parent group)').length, 1,
+            "outer group should contain 'parent group' string");
+
+        form.destroy();
+    });
+
     QUnit.test('form group with newline tag inside', function (assert) {
         assert.expect(6);
 
@@ -5699,6 +5810,66 @@ QUnit.module('Views', {
             'write', // write on save (it fails, does not trigger a read)
             'write', // write on save (it works)
             'read' // read on reload
+        ]);
+
+        form.destroy();
+    });
+
+    QUnit.test('form view is not broken if save failed in readonly mode on field changed', function (assert) {
+        assert.expect(10);
+
+        var failFlag = false;
+
+        var form = createView({
+            View: FormView,
+            model: 'partner',
+            data: this.data,
+            arch: '<form>' +
+                    '<header><field name="trululu" widget="statusbar" clickable="True"/></header>' +
+                '</form>',
+            res_id: 1,
+            mockRPC: function (route, args) {
+                if (args.method === 'write') {
+                    assert.step('write');
+                    if (failFlag) {
+                        return $.Deferred().reject();
+                    }
+                } else if (args.method === 'read') {
+                    assert.step('read');
+                }
+                return this._super.apply(this, arguments);
+            },
+        });
+
+        var $selectedState = form.$('.o_statusbar_status button[data-value="4"]');
+        assert.ok($selectedState.hasClass('btn-primary') && $selectedState.hasClass('disabled'),
+            "selected status should be btn-primary and disabled");
+
+        failFlag = true;
+        var $clickableState = form.$('.o_statusbar_status button[data-value="1"]');
+        $clickableState.click();
+
+        var $lastActiveState = form.$('.o_statusbar_status button[data-value="4"]');
+        $selectedState = form.$('.o_statusbar_status button.btn-primary');
+        assert.strictEqual($selectedState[0], $lastActiveState[0],
+            "selected status is AAA record after save fail");
+
+        failFlag = false;
+        $clickableState = form.$('.o_statusbar_status button[data-value="1"]');
+        $clickableState.click();
+
+        var $lastClickedState = form.$('.o_statusbar_status button[data-value="1"]');
+        $selectedState = form.$('.o_statusbar_status button.btn-primary');
+        assert.strictEqual($selectedState[0], $lastClickedState[0],
+            "last clicked status should be active");
+
+        assert.verifySteps([
+            'read',
+            'write', // fails
+            'read', // must reload when saving fails
+            'write', // works
+            'read', // must reload when saving works
+            'read', // fixme: this read should not be necessary
         ]);
 
         form.destroy();
@@ -6226,6 +6397,41 @@ QUnit.module('Views', {
         delete widgetRegistry.map.test;
     });
 
+    QUnit.test('basic support for widgets', function (assert) {
+        assert.expect(1);
+
+        var MyWidget = Widget.extend({
+            init: function (parent, dataPoint) {
+                this.data = dataPoint.data;
+            },
+            start: function () {
+                this.$el.text(this.data.foo + "!");
+            },
+            updateState: function (dataPoint) {
+                this.$el.text(dataPoint.data.foo + "!");
+            },
+        });
+        widgetRegistry.add('test', MyWidget);
+
+        var form = createView({
+            View: FormView,
+            model: 'partner',
+            data: this.data,
+            arch: '<form string="Partners">' +
+                    '<field name="foo"/>' +
+                    '<widget name="test"/>' +
+                '</form>',
+        });
+
+        form.$('input[name="foo"]').val("I am alive").trigger('input');
+        assert.strictEqual(form.$('.o_widget').text(), 'I am alive!',
+            "widget should have been updated");
+
+        form.destroy();
+        delete widgetRegistry.map.test;
+    });
+
+
     QUnit.test('bounce edit button in readonly mode', function (assert) {
         assert.expect(3);
 
@@ -6333,6 +6539,157 @@ QUnit.module('Views', {
         assert.strictEqual(form.$('.o_field_widget[name=text_field]').height(), height,
             "autoresize should have been done automatically at rendering");
         assert.ok(height > 80, "textarea should have an height of at least 80px");
+
+        form.destroy();
+    });
+
+    QUnit.test('check if the view destroys all widgets and instances', function (assert) {
+        assert.expect(1);
+
+        var instanceNumber = 0;
+        testUtils.patch(mixins.ParentedMixin, {
+            init: function () {
+                instanceNumber++;
+                return this._super.apply(this, arguments);
+            },
+            destroy: function () {
+                if (!this.isDestroyed()) {
+                    instanceNumber--;
+                }
+                return this._super.apply(this, arguments);
+            }
+        });
+
+        var params = {
+            View: FormView,
+            model: 'partner',
+            data: this.data,
+            arch: '<form string="Partners">' +
+                    '<sheet>' +
+                        '<field name="display_name"/>' +
+                        '<field name="foo"/>' +
+                        '<field name="bar"/>' +
+                        '<field name="int_field"/>' +
+                        '<field name="qux"/>' +
+                        '<field name="trululu"/>' +
+                        '<field name="timmy"/>' +
+                        '<field name="product_id"/>' +
+                        '<field name="priority"/>' +
+                        '<field name="state"/>' +
+                        '<field name="date"/>' +
+                        '<field name="datetime"/>' +
+                        '<field name="product_ids"/>' +
+                        '<field name="p">' +
+                            '<tree default_order="foo desc">' +
+                                '<field name="display_name"/>' +
+                                '<field name="foo"/>' +
+                            '</tree>' +
+                        '</field>' +
+                    '</sheet>' +
+                '</form>',
+            archs: {
+                'partner,false,form':
+                    '<form string="Partner">' +
+                        '<sheet>' +
+                            '<group>' +
+                                '<field name="foo"/>' +
+                            '</group>' +
+                        '</sheet>' +
+                    '</form>',
+                "partner_type,false,list": '<tree><field name="name"/></tree>',
+                'product,false,list': '<tree><field name="display_name"/></tree>',
+
+            },
+            res_id: 1,
+        };
+
+        var form = createView(params);
+        form.destroy();
+
+        var initialInstanceNumber = instanceNumber;
+        instanceNumber = 0;
+
+        form = createView(params);
+
+        // call destroy function of controller to ensure that it correctly destroys everything
+        form.__destroy();
+
+        assert.strictEqual(instanceNumber, initialInstanceNumber+1, "every widget must be destroyed exept the parent");
+
+        form.destroy();
+
+        testUtils.unpatch(mixins.ParentedMixin);
+    });
+
+    QUnit.test('do not change pager when discarding current record', function (assert) {
+        assert.expect(2);
+
+        var form = createView({
+            View: FormView,
+            model: 'partner',
+            data: this.data,
+            arch: '<form string="Partners">' +
+                    '<field name="foo"/>' +
+                '</form>',
+            viewOptions: {
+                ids: [1, 2],
+                index: 0,
+            },
+            res_id: 2,
+        });
+
+        assert.strictEqual(form.pager.$('.o_pager_counter').text().trim(), '2 / 2',
+            'pager should indicate that we are on second record');
+
+        form.$buttons.find('.o_form_button_edit').click();
+        form.$buttons.find('.o_form_button_cancel').click();
+
+        assert.strictEqual(form.pager.$('.o_pager_counter').text().trim(), '2 / 2',
+            'pager should not have changed');
+
+        form.destroy();
+    });
+
+    QUnit.test('Form view from ordered, grouped list view correct context', function (assert) {
+        assert.expect(9);
+        this.data.partner.records[0].timmy = [12];
+
+        var form = createView({
+            View: FormView,
+            model: 'partner',
+            data: this.data,
+            arch: '<form>' +
+                    '<field name="foo"/>' +
+                    '<field name="timmy"/>' +
+                '</form>',
+            archs: {
+                'partner_type,false,list':
+                    '<list>' +
+                        '<field name="name"/>' +
+                    '</list>',
+            },
+            viewOptions: {
+                // Simulates coming from a list view with a groupby and filter
+                context: {
+                    orderedBy: [{name: 'foo', asc:true}],
+                    group_by: ['foo'],
+                }
+            },
+            res_id: 1,
+            mockRPC: function (route, args) {
+                assert.step(args.method + '_' + args.model);
+                if (args.method === 'read') {
+                    assert.ok(args.kwargs.context, 'context is present');
+                    assert.notOk('orderedBy' in args.kwargs.context,
+                        'orderedBy not in context');
+                    assert.notOk('group_by' in args.kwargs.context,
+                        'group_by not in context');
+                }
+                return this._super.apply(this, arguments);
+            }
+        });
+
+        assert.verifySteps(['read_partner', 'read_partner_type']);
 
         form.destroy();
     });

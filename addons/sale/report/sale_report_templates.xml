@@ -2,7 +2,7 @@
 <odoo>
 <template id="report_saleorder_document">
     <t t-call="web.external_layout">
-        <t t-set="doc" t-value="doc.with_context({'lang':doc.partner_id.lang})" />
+        <t t-set="doc" t-value="doc.with_context(lang=doc.partner_id.lang)" />
         <div class="page">
             <div class="oe_structure"/>
             <div class="row">
@@ -59,6 +59,10 @@
                 <div name="payment_term" t-if="doc.payment_term_id" class="col-xs-3">
                     <strong>Payment Terms:</strong>
                     <p t-field="doc.payment_term_id"/>
+                </div>
+                <div t-if="doc.validity_date and doc.state in ['draft', 'sent']" class="col-xs-3">
+                    <strong>Expiration Date:</strong>
+                    <p t-field="doc.validity_date"/>
                 </div>
             </div>
 

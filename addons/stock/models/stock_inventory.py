@@ -3,7 +3,7 @@
 
 from odoo import api, fields, models, _
 from odoo.addons import decimal_precision as dp
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, ValidationError
 from odoo.tools import float_utils
 
 
@@ -97,6 +97,13 @@ class Inventory(models.Model):
         else:
             self.total_qty = 0
 
+    @api.multi
+    def unlink(self):
+        for inventory in self:
+            if inventory.state == 'done':
+                raise UserError(_('You cannot delete a validated inventory adjustement.'))
+        return super(Inventory, self).unlink()
+
     @api.model
     def _selection_filter(self):
         """ Get the list of filter allowed according to the options checked
@@ -141,13 +148,13 @@ class Inventory(models.Model):
         if self.filter == 'none' and self.product_id and self.location_id and self.lot_id:
             return
         if self.filter not in ('product', 'product_owner') and self.product_id:
-            raise UserError(_('The selected inventory options are not coherent.'))
+            raise ValidationError(_('The selected inventory options are not coherent.'))
         if self.filter != 'lot' and self.lot_id:
-            raise UserError(_('The selected inventory options are not coherent.'))
+            raise ValidationError(_('The selected inventory options are not coherent.'))
         if self.filter not in ('owner', 'product_owner') and self.partner_id:
-            raise UserError(_('The selected inventory options are not coherent.'))
+            raise ValidationError(_('The selected inventory options are not coherent.'))
         if self.filter != 'pack' and self.package_id:
-            raise UserError(_('The selected inventory options are not coherent.'))
+            raise ValidationError(_('The selected inventory options are not coherent.'))
 
     def action_reset_product_qty(self):
         self.mapped('line_ids').write({'product_qty': 0})
@@ -206,7 +213,7 @@ class Inventory(models.Model):
     def _get_inventory_lines_values(self):
         # TDE CLEANME: is sql really necessary ? I don't think so
         locations = self.env['stock.location'].search([('id', 'child_of', [self.location_id.id])])
-        domain = ' location_id in %s'
+        domain = ' location_id in %s AND active = TRUE'
         args = (tuple(locations.ids),)
 
         vals = []
@@ -247,6 +254,8 @@ class Inventory(models.Model):
 
         self.env.cr.execute("""SELECT product_id, sum(quantity) as product_qty, location_id, lot_id as prod_lot_id, package_id, owner_id as partner_id
             FROM stock_quant
+            LEFT JOIN product_product
+            ON product_product.id = stock_quant.product_id
             WHERE %s
             GROUP BY product_id, location_id, lot_id, package_id, partner_id """ % domain, args)
 
@@ -325,7 +334,7 @@ class InventoryLine(models.Model):
     # TDE FIXME: necessary ? -> replace by location_id
     prodlot_name = fields.Char(
         'Serial Number Name',
-        related='prod_lot_id.name', store=True)
+        related='prod_lot_id.name', store=True, readonly=True)
     company_id = fields.Many2one(
         'res.company', 'Company', related='inventory_id.company_id',
         index=True, readonly=True, store=True)
@@ -368,6 +377,7 @@ class InventoryLine(models.Model):
     def write(self, values):
         values.pop('product_name', False)
         res = super(InventoryLine, self).write(values)
+        return res
 
     @api.model
     def create(self, values):
@@ -385,7 +395,8 @@ class InventoryLine(models.Model):
         if existings:
             raise UserError(_("You cannot have two inventory adjustements in state 'in Progress' with the same product "
                               "(%s), same location (%s), same package, same owner and same lot. Please first validate "
-                              "the first inventory adjustement with this product before creating another one.") % (res.product_id.display_name, res.location_id.name))
+                              "the first inventory adjustement with this product before creating another one.") %
+                            (res.product_id.display_name, res.location_id.display_name))
         return res
 
     @api.constrains('product_id')
@@ -395,7 +406,7 @@ class InventoryLine(models.Model):
         """
         for line in self:
             if line.product_id.type != 'product':
-                raise UserError(_("You can only adjust stockable products."))
+                raise ValidationError(_("You can only adjust stockable products.") + '\n\n%s -> %s' % (line.product_id.display_name, line.product_id.type))
 
     def _get_quants(self):
         return self.env['stock.quant'].search([
