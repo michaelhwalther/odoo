@@ -6248,7 +6248,7 @@ msgstr "Jurnale"
 #: model:ir.actions.report,name:account.action_report_journal
 #: model:ir.ui.menu,name:account.menu_print_journal
 msgid "Journals Audit"
-msgstr ""
+msgstr "Audit jurnale"
 
 #. module: account
 #: selection:res.company,fiscalyear_last_month:0
@@ -10155,6 +10155,7 @@ msgstr ""
 msgid ""
 "The residual amount on a journal item expressed in the company currency."
 msgstr ""
+"Valoarea reziduală dintr-un element de jurnal exprimat în moneda companiei."
 
 #. module: account
 #: code:addons/account/models/account_move.py:493

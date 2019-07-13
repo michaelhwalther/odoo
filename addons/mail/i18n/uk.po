@@ -1507,7 +1507,7 @@ msgstr "Видалити відправлені електронні листи 
 #: code:addons/mail/static/src/xml/thread.xml:325
 #, python-format
 msgid "Delete this attachment"
-msgstr "Видалити це долучення"
+msgstr "Видалити це прикріплення"
 
 #. module: mail
 #: selection:mail.mail,state:0
@@ -5127,7 +5127,7 @@ msgstr "Ланцюжок"
 #. module: mail
 #: model:ir.model.fields,field_description:mail.field_mail_mail_email_to
 msgid "To"
-msgstr "По"
+msgstr "До"
 
 #. module: mail
 #: model:ir.model.fields,field_description:mail.field_email_template_preview_email_to
